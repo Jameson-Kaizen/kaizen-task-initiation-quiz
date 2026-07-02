@@ -95,6 +95,18 @@
   .ai-body.loading{color:var(--muted);font-style:italic;}
   .note{font-size:14px;background:#fbf6ec;border:1px solid #ecdcbd;border-radius:12px;padding:12px 15px;margin:16px 0 0;}
   .sec-h{font-size:13px;font-weight:700;color:var(--gd);text-transform:uppercase;letter-spacing:.05em;margin:20px 0 8px;}
+  .patterns-h{font-size:13px;font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.05em;margin:22px 0 4px;padding-top:16px;border-top:2px solid var(--line);}
+  .patterns-sub{font-size:13.5px;color:var(--muted);margin:0 0 12px;}
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;}
+  .tab{background:var(--soft);border:1.5px solid var(--line);border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:700;color:var(--gd);cursor:pointer;font-family:inherit;transition:background .1s,border-color .1s,color .1s;}
+  .tab:hover{background:#e6f1ea;border-color:var(--g);}
+  .tab.active{background:var(--g);color:#fff;border-color:var(--gd);}
+  .tab .pct{font-weight:800;opacity:.75;margin-left:6px;font-size:12.5px;}
+  .tab-thesis{font-size:16px;color:var(--gd);font-weight:700;margin:0 0 10px;}
+  .tab-def{font-size:15.5px;margin:0 0 12px;}
+  .attrs{margin:0 0 16px;padding:0;list-style:none;}
+  .attrs li{position:relative;padding:0 0 0 20px;margin:0 0 7px;font-size:14.5px;}
+  .attrs li:before{content:"";position:absolute;left:2px;top:8px;width:7px;height:7px;border-radius:50%;background:var(--g);}
   .body p{margin:0 0 14px;font-size:15.5px;}
   .body ul{margin:0 0 8px;padding-left:20px;}
   .body li{margin-bottom:6px;font-size:15px;}
@@ -155,6 +167,12 @@
     <div class="ai" id="ai" hidden>
       <div class="ai-head">A personalised read on your pattern</div>
       <div class="ai-body" id="ai-body"></div>
+    </div>
+    <div id="r-patterns" hidden>
+      <div class="patterns-h">Explore your top patterns</div>
+      <p class="patterns-sub" id="r-patterns-sub"></p>
+      <div class="tabs" id="r-tabs" role="tablist"></div>
+      <div class="body" id="r-panel"></div>
     </div>
     <div class="body" id="r-body"></div>
     <div class="cta">
@@ -273,6 +291,14 @@
     helps:"Naming the split first, then working out what is actually driving it before deciding what to change. Sometimes the fix is adding structure to the setting that has none. Sometimes it is addressing the specific thing that setting brings up. A short conversation usually sorts out which, and that is the part that is genuinely hard to do alone."
   };
 
+  // Per-pattern definition + hallmark signs, shown at the top of each results tab.
+  var ARCHX={
+    "overwhelm-freezer":{def:"The Overwhelm Freezer is someone whose brain takes in the whole task at once: every step, every unknown, every way it could go wrong. That flood reads as a threat, and the system protects you by shutting down before you begin. It looks like avoidance from the outside; from the inside it is fog and heaviness, not laziness.",attrs:["Freezing or going foggy at the start of big tasks","Scrolling or drifting instead of opening the thing","The longer you wait, the heavier starting gets","Fine once you are in, the wall is at the entrance"]},
+    "perfectionist-staller":{def:"The Perfectionist Staller is someone who stalls not on the work but on committing to a version that could be judged. Preparation feels safe and productive, so you research, plan, and perfect the setup instead of starting. The standards are not the problem; the exposure is.",attrs:["Endless prep, research, and list rewriting before starting","Waiting for the right tool, plan, or headspace","Living comfortably in 'almost ready to start'","Ships good work, but far less often than you could"]},
+    "interest-driven-starter":{def:"The Interest-Driven Starter is someone whose start signal is conditional. Novel, urgent, or interesting work launches instantly; boring or low-stakes work never fires, no matter how important it is. This is how your brain assigns reward, not a discipline gap.",attrs:["Brilliant in a crisis, stuck on routine","Admin and paperwork pile up until they catch fire","Deadlines are your most reliable starting tool","Effort tracks interest, not importance"]},
+    "decision-avoider":{def:"The Decision Avoider is someone who gets stuck before the work, at the choosing. With several options open, the brain keeps weighing which one first, what matters most, what if it is the wrong call. Evaluating feels responsible, but the loop is built to keep running instead of resolving.",attrs:["Reopening and reprioritizing the same to-do list","Multiple lists in multiple places, none current","Busy all day with nothing nameable finished","Starts easily once the next action is already chosen"]}
+  };
+
   var answers={}, pos=0, LAST=null;
   var SCREENS=["intro","q","gate","results"];
   function show(id){ SCREENS.forEach(function(s){var e=$(s);if(e)e.hidden=(s!==id);}); $("prog").hidden=(id!=="q"); }
@@ -361,18 +387,66 @@
     }
 
     var html="";
-    html+='<div class="sec-h">What is actually happening</div><p>'+o.happening+'</p>';
-    html+='<div class="sec-h">What this looks like day to day</div><ul>'+o.daytoday.map(function(t){return "<li>"+t+"</li>";}).join("")+'</ul>';
-    html+='<div class="sec-h">What it is costing you</div><p>'+o.costing+'</p>';
-    html+='<div class="sec-h">Why trying harder has not worked</div><p>'+o.whyharder+'</p>';
-    html+='<div class="sec-h">What actually helps</div><p>'+o.helps+'</p>';
-    if(!LAST.positive && (LAST.split==="home"||LAST.split==="work")){
-      html+='<div class="sec-h">The split between work and home</div><p>'+WORKHOME.sub+'</p><p>'+WORKHOME.happening+'</p><p>'+WORKHOME.helps+'</p>';
+    if(LAST.positive){
+      // Positive path keeps its single full write-up; no pattern tabs.
+      $("r-patterns").hidden=true;
+      html+='<div class="sec-h">What is actually happening</div><p>'+o.happening+'</p>';
+      html+='<div class="sec-h">What this looks like day to day</div><ul>'+o.daytoday.map(function(t){return "<li>"+t+"</li>";}).join("")+'</ul>';
+      html+='<div class="sec-h">What it is costing you</div><p>'+o.costing+'</p>';
+      html+='<div class="sec-h">Why trying harder has not worked</div><p>'+o.whyharder+'</p>';
+      html+='<div class="sec-h">What actually helps</div><p>'+o.helps+'</p>';
+    } else {
+      // Archetype path: full write-ups live in the tabs; the work/home split stays below,
+      // rendered once, because it is about the taker, not any one pattern.
+      $("r-sub").textContent="";
+      $("r-patterns").hidden=false;
+      buildPatternTabs();
+      if(LAST.split==="home"||LAST.split==="work"){
+        html+='<div class="sec-h">The split between work and home</div><p>'+WORKHOME.sub+'</p><p>'+WORKHOME.happening+'</p><p>'+WORKHOME.helps+'</p>';
+      }
     }
     body.insertAdjacentHTML("beforeend", html);
 
     var bk=$("r-book"); bk.href=BOOKING_URL;
     bk.addEventListener("click",function(){ track("cta_click",{location:"results"}); if(window.fbq) fbq("trackCustom","BookingClick"); });
+  }
+
+  // Top-3 starting patterns as clickable tabs; each panel is a full, self-contained description.
+  function topThreeMech(){
+    return MECH.map(function(m){ return {m:m, pct:LAST.pct[m]}; })
+      .sort(function(a,b){ return b.pct-a.pct || TIE.indexOf(a.m)-TIE.indexOf(b.m); })
+      .filter(function(o){ return o.m===LAST.top || o.pct>0; })
+      .slice(0,3);
+  }
+  function buildPatternTabs(){
+    var top=topThreeMech(); var tabs=$("r-tabs"); tabs.innerHTML="";
+    var sub=$("r-patterns-sub"); if(sub) sub.textContent=(top.length>1)?"Most people are a mix. Tap through your top patterns to read each one.":"";
+    top.forEach(function(o,k){
+      var slug=MECH_SLUG[o.m];
+      var b=document.createElement("button"); b.type="button"; b.className="tab"+(k===0?" active":"");
+      b.setAttribute("role","tab"); b.setAttribute("aria-selected",k===0?"true":"false");
+      b.innerHTML=OUTCOMES[slug].name+'<span class="pct">'+o.pct+'%</span>';
+      b.addEventListener("click",function(){ selectPattern(o.m,b); track("pattern_tab",{archetype:slug}); });
+      tabs.appendChild(b);
+    });
+    if(top.length) selectPattern(top[0].m, tabs.firstChild);
+  }
+  function selectPattern(m,btn){
+    var kids=$("r-tabs").children;
+    [].forEach.call(kids,function(c){ c.classList.remove("active"); c.setAttribute("aria-selected","false"); });
+    if(btn){ btn.classList.add("active"); btn.setAttribute("aria-selected","true"); }
+    var slug=MECH_SLUG[m], o=OUTCOMES[slug], x=ARCHX[slug];
+    var html="";
+    if(o.sub) html+='<p class="tab-thesis">'+o.sub+'</p>';
+    if(x && x.def) html+='<p class="tab-def">'+x.def+'</p>';
+    if(x && x.attrs && x.attrs.length){ html+='<div class="sec-h">Common signs</div><ul class="attrs">';
+      x.attrs.forEach(function(at){ html+='<li>'+at+'</li>'; }); html+='</ul>'; }
+    html+='<div class="sec-h">What is actually happening</div><p>'+o.happening+'</p>';
+    html+='<div class="sec-h">What this looks like day to day</div><ul>'+o.daytoday.map(function(t){return "<li>"+t+"</li>";}).join("")+'</ul>';
+    html+='<div class="sec-h">What it is costing you</div><p>'+o.costing+'</p>';
+    html+='<div class="sec-h">Why trying harder has not worked</div><p>'+o.whyharder+'</p>';
+    html+='<div class="sec-h">What actually helps</div><p>'+o.helps+'</p>';
+    $("r-panel").innerHTML=html;
   }
 
   function emailValid(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
